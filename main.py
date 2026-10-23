@@ -11,39 +11,41 @@ SEEN = "seen"
 MIN_BAR_WIDTH = 8
 
 
-def load_words(csv_path):
+def load_words(csv_paths):
     words = []
 
-    try:
-        with open(csv_path, "r", encoding="utf-8-sig", newline="") as file:
-            reader = csv.reader(file)
+    for csv_path in csv_paths:
+        try:
+            with open(csv_path, "r", encoding="utf-8-sig", newline="") as file:
+                reader = csv.reader(file)
 
-            for line_number, row in enumerate(reader, start=1):
-                if len(row) < 2:
-                    print(
-                        f"Skipping line {line_number}: expected two columns",
-                        file=sys.stderr,
-                    )
-                    continue
+                for line_number, row in enumerate(reader, start=1):
+                    if len(row) < 2:
+                        print(
+                            f"Skipping line {line_number} in {csv_path}: "
+                            "expected two columns",
+                            file=sys.stderr,
+                        )
+                        continue
 
-                russian = row[0].strip()
-                english = row[1].strip()
+                    russian = row[0].strip()
+                    english = row[1].strip()
 
-                if russian and english:
-                    words.append((russian, english, UNSEEN))
-                    words.append((english, russian, UNSEEN))
+                    if russian and english:
+                        words.append((russian, english, UNSEEN))
+                        words.append((english, russian, UNSEEN))
 
-        random.shuffle(words)
+        except FileNotFoundError:
+            print(f"File not found: {csv_path}", file=sys.stderr)
+            sys.exit(1)
+        except OSError as error:
+            print(f"Could not read file {csv_path}: {error}", file=sys.stderr)
+            sys.exit(1)
 
-    except FileNotFoundError:
-        print(f"File not found: {csv_path}", file=sys.stderr)
-        sys.exit(1)
-    except OSError as error:
-        print(f"Could not read file: {error}", file=sys.stderr)
-        sys.exit(1)
+    random.shuffle(words)
 
     if not words:
-        print("The CSV file contains no valid word pairs.", file=sys.stderr)
+        print("The CSV files contain no valid word pairs.", file=sys.stderr)
         sys.exit(1)
 
     return words
@@ -123,15 +125,19 @@ def insert_later(word_pairs, card):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Practice Russian-English vocabulary from a two-column CSV file."
+        description="Practice Russian-English vocabulary from two-column CSV files."
     )
     parser.add_argument(
-        "csv_file",
-        help="Path to the CSV file; column 1 should be Russian and column 2 English",
+        "csv_files",
+        nargs="+",
+        help=(
+            "Paths to one or more CSV files; column 1 should be Russian "
+            "and column 2 English"
+        ),
     )
     args = parser.parse_args()
 
-    word_pairs = load_words(args.csv_file)
+    word_pairs = load_words(args.csv_files)
     total_cards = len(word_pairs)
     completed = 0
     seen = 0
